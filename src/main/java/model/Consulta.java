@@ -5,6 +5,7 @@
 package model;
 
 import jakarta.persistence.Basic;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -43,7 +44,7 @@ public class Consulta implements Serializable {
     @Temporal(TemporalType.TIME)
     private Date horario;
     @JoinColumn(name = "id_cliente", referencedColumnName = "id")
-    @ManyToOne(optional = false)
+    @ManyToOne(cascade = CascadeType.PERSIST,optional = false)
     private Cliente idCliente;
 
     public Consulta() {

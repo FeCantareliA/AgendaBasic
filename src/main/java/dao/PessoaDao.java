@@ -82,6 +82,8 @@ public class PessoaDao {
            em.close();
        }
     }
+    
+    //buscas
     public static Pessoa BuscarPorId(int id){
         em = new ConnectionFactory().getConnection();
         try{
@@ -111,6 +113,8 @@ public class PessoaDao {
             em.close();
         }
     }
+    
+    //listar
     public static List<Pessoa> Listar(){
         em = new ConnectionFactory().getConnection();
         try{

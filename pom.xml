@@ -15,7 +15,7 @@
 
     <dependencies>
 
-        <!-- Hibernate ORM Core (JPA 3.1+ compatível) -->
+        <!-- Hibernate ORM Core (JPA 3.1+ compat?vel) -->
         <dependency>
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>

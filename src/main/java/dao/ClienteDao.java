@@ -93,6 +93,7 @@ public class ClienteDao {
         }
     }
 
+    //buscas
     public static Cliente BuscarPorId(int id) {
         em = new ConnectionFactory().getConnection();
         try {
@@ -123,6 +124,8 @@ public class ClienteDao {
             em.close();
         }
     }
+    
+    //Listar
     public static List<Cliente> Listar(){
         em = new ConnectionFactory().getConnection();
         try{
