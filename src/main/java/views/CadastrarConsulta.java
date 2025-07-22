@@ -4,13 +4,12 @@
  */
 package views;
 
+import connection.ConnectionFactory;
 import dao.ClienteDao;
 import dao.ConsultaDao;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import factory.DaoFactory;
+import jakarta.persistence.EntityManager;
+import java.time.LocalTime;
 import javax.swing.JOptionPane;
 import model.Cliente;
 import model.Consulta;
@@ -27,9 +26,10 @@ public class CadastrarConsulta extends javax.swing.JFrame {
     public CadastrarConsulta() {
         initComponents();
     }
-    
+
     private Consultas telaConsultas;
-    public CadastrarConsulta(Consultas telaConsultas,String horario) {
+
+    public CadastrarConsulta(Consultas telaConsultas, String horario) {
         initComponents();
         this.telaConsultas = telaConsultas;
         TxtHorario.setText(horario);
@@ -105,34 +105,58 @@ public class CadastrarConsulta extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void BtRegistrarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BtRegistrarActionPerformed
-        Cliente c = ClienteDao.BuscarPorNome(TxtNome.getText().trim());
-
-        if (c == null) {
-            JOptionPane.showMessageDialog(this, "Cliente não encontrado!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String horario = TxtHorario.getText().trim();
-        Date data = null;
-        try {
-            data = AdaptarHorario(horario);
-        } catch (ParseException ex) {
-            JOptionPane.showMessageDialog(this, "Formato de horário inválido!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        Consulta con = new Consulta();
-        con.setHorario(data);
-        con.setIdCliente(c);
+        EntityManager em = null;
 
         try {
-            ConsultaDao.Salvar(con);
-            JOptionPane.showMessageDialog(this, "Consulta cadastrada com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-            telaConsultas.preencherTabelaHorario();
-            this.dispose();  // fecha a janela após salvar
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Erro ao salvar consulta: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            em = new ConnectionFactory().getConnection();
+
+            DaoFactory factory = new DaoFactory(em);
+            ClienteDao clienteDao = factory.getClienteDao();
+            ConsultaDao consultaDao = factory.getConsultaDao();
+
+            String nome = TxtNome.getText().trim();
+            if (nome.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Digite o nome do cliente!", "Aviso", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Cliente c = clienteDao.buscarPorNome(nome);
+
+            if (c == null) {
+                JOptionPane.showMessageDialog(this, "Cliente não encontrado!", "Erro", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String horario = TxtHorario.getText().trim();
+            LocalTime data = null;
+            try {
+                data = AdaptarHorario(horario);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Formato de horário inválido! Use o padrão HH:mm (ex: 14:00)", "Erro", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            Consulta con = new Consulta();
+            con.setHorario(data);
+            con.setIdCliente(c);
+
+            try {
+                consultaDao.salvarOuAtualizar(con);
+                JOptionPane.showMessageDialog(this, "Consulta cadastrada com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                telaConsultas.preencherTabelaHorario();
+                this.dispose();  // fecha a janela após salvar
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Erro ao salvar consulta: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Erro ao cadastrar: " + ex);
+        } finally {
+            if (em != null && em.isOpen()) {
+                em.close();
+            }
         }
+
+
     }//GEN-LAST:event_BtRegistrarActionPerformed
 
     /**
@@ -170,10 +194,8 @@ public class CadastrarConsulta extends javax.swing.JFrame {
         });
     }
 
-    private static Date AdaptarHorario(String horas) throws ParseException {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-        Date horario = sdf.parse(horas);
-        return horario;
+    private LocalTime AdaptarHorario(String horas) {
+        return LocalTime.parse(horas);
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton BtRegistrar;

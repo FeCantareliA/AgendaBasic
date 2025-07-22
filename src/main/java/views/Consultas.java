@@ -4,10 +4,12 @@
  */
 package views;
 
+import connection.ConnectionFactory;
 import dao.ConsultaDao;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import factory.DaoFactory;
+import jakarta.persistence.EntityManager;
+import java.time.LocalTime;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import model.Consulta;
 import views.button.ButtonEditor;
@@ -35,6 +37,7 @@ public class Consultas extends javax.swing.JFrame {
 
         jScrollPane1 = new javax.swing.JScrollPane();
         TbHorario = new javax.swing.JTable();
+        BtVoltar = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -63,6 +66,13 @@ public class Consultas extends javax.swing.JFrame {
         });
         jScrollPane1.setViewportView(TbHorario);
 
+        BtVoltar.setText("Voltar");
+        BtVoltar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                BtVoltarActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -71,17 +81,29 @@ public class Consultas extends javax.swing.JFrame {
                 .addGap(57, 57, 57)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 375, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(67, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(BtVoltar)
+                .addGap(31, 31, 31))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addGap(25, 25, 25)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 275, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(77, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 35, Short.MAX_VALUE)
+                .addComponent(BtVoltar)
+                .addGap(19, 19, 19))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void BtVoltarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BtVoltarActionPerformed
+         Acesso view = new Acesso();
+         view.setVisible(true);
+         this.dispose();
+    }//GEN-LAST:event_BtVoltarActionPerformed
 
     /**
      * @param args the command line arguments
@@ -120,46 +142,60 @@ public class Consultas extends javax.swing.JFrame {
     }
 
     public void preencherTabelaHorario() {
-    DefaultTableModel modelo = (DefaultTableModel) TbHorario.getModel();
-    modelo.setRowCount(0);
+        DefaultTableModel modelo = (DefaultTableModel) TbHorario.getModel();
+        modelo.setRowCount(0);
 
-    // Passa this para ButtonEditor
-    TbHorario.getColumn("Registrar").setCellRenderer(new ButtonRenderer());
-    TbHorario.getColumn("Registrar").setCellEditor(new ButtonEditor(TbHorario, this));
+        // Passa this para ButtonEditor
+        TbHorario.getColumn("Registrar").setCellRenderer(new ButtonRenderer());
+        TbHorario.getColumn("Registrar").setCellEditor(new ButtonEditor(TbHorario, this));
 
-    TbHorario.getColumn("Excluir").setCellRenderer(new ButtonRenderer());
-    TbHorario.getColumn("Excluir").setCellEditor(new ButtonEditor(TbHorario, this));
+        TbHorario.getColumn("Excluir").setCellRenderer(new ButtonRenderer());
+        TbHorario.getColumn("Excluir").setCellEditor(new ButtonEditor(TbHorario, this));
 
-    for (int hora = 8; hora <= 18; hora++) {
-        String horarioFormatado = String.format("%02d:00", hora);
-        Consulta c = null;
+        EntityManager em = null;
         try {
-            c = ConsultaDao.BuscarPorHorario(AdaptarHorario(hora));
+            em = new ConnectionFactory().getConnection();
+
+                DaoFactory factory = new DaoFactory(em);
+                ConsultaDao consultaDao = factory.getConsultaDao();
+                
+                for (int hora = 8; hora <= 18; hora++) {
+            String horarioFormatado = String.format("%02d:00", hora);
+            Consulta c = null;
+            try {
+                c = consultaDao.buscarPorHorario(AdaptarHorario(horarioFormatado));
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            if (hora == 12) {
+                modelo.addRow(new Object[]{horarioFormatado, "Almoço", null, null});
+            } else if (c != null) {
+                modelo.addRow(new Object[]{horarioFormatado, "Indisponível", "", "Excluir"});
+            } else {
+                modelo.addRow(new Object[]{horarioFormatado, "Disponível", "Registrar", ""});
+            }
+        }
+                
+                
+                
         } catch (Exception ex) {
-            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Erro ao carregar horários:\n" + ex.getMessage());
+        } finally {
+            if (em != null && em.isOpen()) {
+                em.close();
+            }
         }
-
-        if (hora == 12) {
-            modelo.addRow(new Object[]{horarioFormatado, "Almoço", null, null});
-        } else if (c != null) {
-            modelo.addRow(new Object[]{horarioFormatado, "Indisponível", "", "Excluir"});
-        } else {
-            modelo.addRow(new Object[]{horarioFormatado, "Disponível", "Registrar", ""});
-        }
+        
     }
-}
 
-
-    private static Date AdaptarHorario(int hora) throws ParseException {
-        String horaFormatada = String.valueOf(hora) + ":00";
-
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-        Date horario = sdf.parse(horaFormatada);
-        return horario;
+    private LocalTime AdaptarHorario(String horas){
+        return LocalTime.parse(horas);
     }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton BtVoltar;
     private javax.swing.JTable TbHorario;
     private javax.swing.JScrollPane jScrollPane1;
     // End of variables declaration//GEN-END:variables

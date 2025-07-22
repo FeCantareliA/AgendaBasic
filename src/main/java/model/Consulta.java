@@ -16,10 +16,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalTime;
+
 
 /**
  *
@@ -41,8 +41,8 @@ public class Consulta implements Serializable {
     private Integer id;
     @Basic(optional = false)
     @Column(name = "horario")
-    @Temporal(TemporalType.TIME)
-    private Date horario;
+    
+    private LocalTime horario;
     @JoinColumn(name = "id_cliente", referencedColumnName = "id")
     @ManyToOne(cascade = CascadeType.PERSIST,optional = false)
     private Cliente idCliente;
@@ -54,7 +54,7 @@ public class Consulta implements Serializable {
         this.id = id;
     }
 
-    public Consulta(Integer id, Date horario) {
+    public Consulta(Integer id, LocalTime horario) {
         this.id = id;
         this.horario = horario;
     }
@@ -67,11 +67,11 @@ public class Consulta implements Serializable {
         this.id = id;
     }
 
-    public Date getHorario() {
+    public LocalTime getHorario() {
         return horario;
     }
 
-    public void setHorario(Date horario) {
+    public void setHorario(LocalTime horario) {
         this.horario = horario;
     }
 

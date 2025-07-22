@@ -1,215 +1,124 @@
 package dao;
 
-import connection.ConnectionFactory;
+import exception.*;
+import factory.JpaUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalTime;
 import java.util.List;
 import model.Cliente;
 import model.Consulta;
+import util.MensagemUtil;
 
 public class ConsultaDao {
 
-    private static EntityManager em;
+    private EntityManager em;
 
-   public static void Salvar(Consulta consulta) {
-    em = new ConnectionFactory().getConnection();
-    try {
-        em.getTransaction().begin();
-        Cliente clienteGen = em.find(Cliente.class, consulta.getIdCliente().getId());
-        consulta.setIdCliente(clienteGen);
+    public ConsultaDao(EntityManager em) {
+        this.em = em;
+    }
+
+    public void salvarOuAtualizar(Consulta consulta) {
+        try{
+    JpaUtil.executarSemRetorno(em, em -> {
         if (consulta.getIdCliente() == null || consulta.getIdCliente().getId() == null) {
-            System.out.println("Cliente não cadastrado.");
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            return;
+            throw new AgendaException("Consulta deve ter um Cliente cadastrado.");
+            
         }
 
-        Consulta c = BuscarPorHorario(em,consulta.getHorario());
-        if (c == null) {
+        // Reatacha cliente (se necessário)
+        Cliente clienteGerenciado = em.find(Cliente.class, consulta.getIdCliente().getId());
+        consulta.setIdCliente(clienteGerenciado);
+
+        if (consulta.getId() == null) {
+            Consulta existente = buscarPorHorario(consulta.getHorario());
+            if (existente != null) {
+                throw new HorarioOcupadoException("O horário já está ocupado");
+            }
             em.persist(consulta);
             System.out.println("Consulta cadastrada.");
         } else {
-            System.out.println("Horário ocupado.");
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            return;
+            em.merge(consulta);
+            System.out.println("Consulta atualizada.");
         }
-
-        if (em.getTransaction().isActive()) {
-            em.getTransaction().commit();
+    });
+        }catch(AgendaException ex){
+            MensagemUtil.tratar(ex);
+        }catch(Exception ex){
+            MensagemUtil.tratar(ex);
         }
-
-    } catch (Exception ex) {
-        System.out.println("Erro: " + ex);
-        if (em.getTransaction().isActive()) {
-            em.getTransaction().rollback();
-        }
-    } finally {
-        em.close();
-    }
+        
 }
 
-    public static void Deletar(Consulta consulta) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            em.getTransaction().begin();
+    public void deletar(Consulta consulta) {
+        try{
+            
+        JpaUtil.executarSemRetorno(em, em -> {
             if (consulta.getId() == null) {
-                System.out.println("Não há consulta cadastrada");
+                throw new EntidadeNaoEncontradaException("Não há consulta cadastrada");
             } else {
                 Consulta c = em.find(Consulta.class, consulta.getId());
                 if (c == null || c.getId() == null) {
-                    System.out.println("Consulta não encontrada para remoção.");
+                    throw new EntidadeNaoEncontradaException("Consulta não encontrada para remoção.");
                 } else {
                     em.remove(c);
                     System.out.println("Consulta removida com sucesso.");
                 }
             }
 
-            em.getTransaction().commit();
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-        } finally {
-            em.close();
-        }
-    }
-
-    public static void Atualizar(Consulta consulta) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            em.getTransaction().begin();
-            if (consulta.getId() == null || consulta.getIdCliente() == null
-                    || consulta.getIdCliente().getId() == null) {
-                System.out.println("Consulta ou Cliente não cadastrado.");
-            } else {
-                em.merge(consulta);
-                System.out.println("Consulta atualizada");
-            }
-            em.getTransaction().commit();
-
-        } catch (Exception ex) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-        } finally {
-            em.close();
+        });
+        }catch(AgendaException ex){
+            MensagemUtil.tratar(ex);
+        }catch(Exception ex){
+            MensagemUtil.tratar(ex);
         }
     }
 
     //buscas
-    public static Consulta BuscarPorId(int id) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            Consulta c = em.find(Consulta.class, id);
-            return c;
-
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
+    public Consulta buscarPorId(int id) {
+        return JpaUtil.executar(em, em -> {
+            return em.find(Consulta.class, id);
+        });
     }
 
-    public static Consulta BuscarPorNome(String nome) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            String jpql = "SELECT c FROM Consulta c WHERE c.idCliente.idPessoa.nome = :nome";
-            return em.createQuery(jpql, Consulta.class).setParameter("nome", nome).getSingleResult();
+    public Consulta buscarPorNome(String nome) {
+        return JpaUtil.executar(em, em -> {
+            try {
+                String jpql = "SELECT c FROM Consulta c WHERE c.idCliente.idPessoa.nome = :nome";
+                return em.createQuery(jpql, Consulta.class)
+                        .setParameter("nome", nome)
+                        .getSingleResult();
 
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
-    }
+            } catch (NoResultException ex) {
+                throw new EntidadeNaoEncontradaException("Consulta com o nome '" + nome + "' não foi encontrada.");
+            }
+        });
 
-    public static Consulta BuscarPorHorario(String hora, String minuto) throws ParseException {
-        em = new ConnectionFactory().getConnection();
-        String hour = hora + ":" + minuto;
-        Date horario = AdaptarHorario(hour);
-        try {
-            String jpql = "SELECT c FROM Consulta c WHERE c.horario = :horario";
-            return em.createQuery(jpql, Consulta.class).setParameter("horario", horario).getSingleResult();
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
     }
 
-    public static Consulta BuscarPorHorario(String horas) throws ParseException {
-        em = new ConnectionFactory().getConnection();
-        Date horario = AdaptarHorario(horas);
-        try {
-            String jpql = "SELECT c FROM Consulta c WHERE c.horario = :horario";
-            return em.createQuery(jpql, Consulta.class).setParameter("horario", horario).getSingleResult();
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
+    public Consulta buscarPorHorario(LocalTime horario) {
+        return JpaUtil.executar(em, em -> {
+            try {
+
+                String jpql = "SELECT c FROM Consulta c WHERE c.horario = :horario";
+                return em.createQuery(jpql, Consulta.class)
+                        .setParameter("horario", horario)
+                        .getSingleResult();
+            } catch (NoResultException ex) {
+                return null; //retorna null para mostrar que não há consulta marcada
+            }
+        });
+
     }
-    
-    public static Consulta BuscarPorHorario(Date horario) {
-    em = new ConnectionFactory().getConnection();
-    try {
-        String jpql = "SELECT c FROM Consulta c WHERE c.horario = :horario";
-        return em.createQuery(jpql, Consulta.class)
-                 .setParameter("horario", horario)
-                 .getSingleResult();
-    } catch (jakarta.persistence.NoResultException e) {
-        return null; // Nenhuma consulta no horário
-    } catch (Exception ex) {
-        System.out.println("Erro: " + ex);
-        return null;
-    }finally {
-        em.close();
-    }
-}
-    public static Consulta BuscarPorHorario(EntityManager em, Date horario) {
-    try {
-        String jpql = "SELECT c FROM Consulta c WHERE c.horario = :horario";
-        List<Consulta> resultado= em.createQuery(jpql, Consulta.class)
-                 .setParameter("horario", horario)
-                 .getResultList();
-        return resultado.isEmpty() ? null : resultado.get(0);
-    } catch (NoResultException e) {
-        return null;
-    } catch (Exception ex) {
-        System.out.println("Erro: " + ex);
-        return null;
-    }
-}
 
     //Listar
-    public static List<Consulta> Listar() {
-        em = new ConnectionFactory().getConnection();
-        try {
+    public List<Consulta> listar() {
+        return JpaUtil.executar(em, em -> {
             String jpql = "SELECT c FROM Consulta c";
             return em.createQuery(jpql, Consulta.class).getResultList();
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
+
+        });
+
     }
 
-    //metodos suportes
-    private static Date AdaptarHorario(String horas) throws ParseException {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-        Date horario = sdf.parse(horas);
-        return horario;
-    }
 }

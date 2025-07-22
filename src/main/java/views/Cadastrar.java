@@ -4,9 +4,12 @@
  */
 package views;
 
+import connection.ConnectionFactory;
 import dao.*;
+import factory.DaoFactory;
+import jakarta.persistence.EntityManager;
 import java.awt.Color;
-import javax.swing.border.Border;
+import javax.swing.JOptionPane;
 import model.*;
 
 /**
@@ -14,11 +17,10 @@ import model.*;
  * @author Fecan
  */
 public class Cadastrar extends javax.swing.JFrame {
-    
+
     private Pessoa pessoa;
     private Cliente cliente;
-    
-    
+
     /**
      * Creates new form Cadastrar
      */
@@ -43,6 +45,7 @@ public class Cadastrar extends javax.swing.JFrame {
         TfTelefone = new javax.swing.JTextField();
         jButton1 = new javax.swing.JButton();
         jLabel3 = new javax.swing.JLabel();
+        BtVoltar = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -92,6 +95,13 @@ public class Cadastrar extends javax.swing.JFrame {
 
         jLabel3.setText("* Campo Obrigatório.");
 
+        BtVoltar.setText("Retornar");
+        BtVoltar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                BtVoltarActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -99,19 +109,19 @@ public class Cadastrar extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addGap(0, 259, Short.MAX_VALUE)
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 125, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(TfName)
                     .addComponent(TfEmail)
                     .addComponent(TfTelefone)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(LbName)
-                            .addComponent(LbEmail)
-                            .addComponent(LbTelefone)
-                            .addComponent(jLabel3))
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addComponent(LbName, javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(LbEmail, javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(LbTelefone, javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel3))
+                            .addComponent(BtVoltar, javax.swing.GroupLayout.PREFERRED_SIZE, 123, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 138, Short.MAX_VALUE)
+                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 123, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -132,7 +142,9 @@ public class Cadastrar extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 39, Short.MAX_VALUE)
                 .addComponent(jLabel3)
                 .addGap(11, 11, 11)
-                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, 45, Short.MAX_VALUE)
+                    .addComponent(BtVoltar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(21, 21, 21))
         );
 
@@ -151,43 +163,68 @@ public class Cadastrar extends javax.swing.JFrame {
         String nome = TfName.getText();
         String email = TfEmail.getText();
         String telefone = TfTelefone.getText();
-        
-        if(nome.isBlank()){
-           LbName.setForeground( Color.RED);
-        }else if(telefone.isBlank()){
-            LbTelefone.setForeground(Color.RED);
-        }else if(email.isBlank()){
-            LbEmail.setForeground(Color.RED);
-        }else{
-            pessoa= new Pessoa();
-            pessoa.setEmail(email);
-            pessoa.setNome(nome);
-            pessoa.setTelefone(telefone);
 
-            PessoaDao.Salvar(pessoa);
-            
-            
-            pessoa=PessoaDao.BuscarPorNome(nome);
-            
-            cliente=new Cliente();
-            cliente.setIdPessoa(pessoa);
-            ClienteDao.Salvar(cliente);
-            
-      }
-      
+        if (nome.isBlank()) {
+            LbName.setForeground(Color.RED);
+        } else if (telefone.isBlank()) {
+            LbTelefone.setForeground(Color.RED);
+        } else if (email.isBlank()) {
+            LbEmail.setForeground(Color.RED);
+        } else {
+            EntityManager em = null;
+            try {
+                em = new ConnectionFactory().getConnection();
+
+                DaoFactory factory = new DaoFactory(em);
+                PessoaDao pessoaDao = factory.getPessoaDao();
+                ClienteDao clienteDao = factory.getClienteDao();
+                pessoa = new Pessoa();
+                pessoa.setEmail(email);
+                pessoa.setNome(nome);
+                pessoa.setTelefone(telefone);
+
+                pessoaDao.salvarOuAtualizar(pessoa);
+
+                pessoa = pessoaDao.buscarPorNome(nome);
+
+                cliente = new Cliente();
+                cliente.setIdPessoa(pessoa);
+                clienteDao.salvarOuAtualizar(cliente);
+                
+                
+                JOptionPane.showMessageDialog(this, "Cadastro realizado com sucesso!");
+                
+            } catch (Exception ex) {
+                System.out.println("Erro ao cadastrar: " + ex);
+            } finally {
+                if (em != null && em.isOpen()) {
+                    em.close();
+                }
+            }
+            TfName.setText("");
+            TfTelefone.setText("");
+            TfEmail.setText("");
+        }
+
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void TfNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_TfNameFocusGained
-        LbName.setForeground(new Color(0,0,0));
+        LbName.setForeground(new Color(0, 0, 0));
     }//GEN-LAST:event_TfNameFocusGained
 
     private void TfEmailFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_TfEmailFocusGained
-        LbEmail.setForeground(new Color(0,0,0));
+        LbEmail.setForeground(new Color(0, 0, 0));
     }//GEN-LAST:event_TfEmailFocusGained
 
     private void TfTelefoneFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_TfTelefoneFocusGained
-        LbTelefone.setForeground(new Color(0,0,0));
+        LbTelefone.setForeground(new Color(0, 0, 0));
     }//GEN-LAST:event_TfTelefoneFocusGained
+
+    private void BtVoltarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BtVoltarActionPerformed
+        Acesso view = new Acesso();
+        view.setVisible(true);
+        this.dispose();
+    }//GEN-LAST:event_BtVoltarActionPerformed
 
     /**
      * @param args the command line arguments
@@ -225,6 +262,7 @@ public class Cadastrar extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton BtVoltar;
     private javax.swing.JLabel LbEmail;
     private javax.swing.JLabel LbName;
     private javax.swing.JLabel LbTelefone;

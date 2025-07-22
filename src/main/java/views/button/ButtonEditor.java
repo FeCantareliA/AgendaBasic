@@ -1,10 +1,13 @@
 package views.button;
 
+import connection.ConnectionFactory;
 import dao.ConsultaDao;
+import factory.DaoFactory;
+import jakarta.persistence.EntityManager;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.text.ParseException;
+import java.time.LocalTime;
 import javax.swing.AbstractCellEditor;
 import javax.swing.JButton;
 import javax.swing.JTable;
@@ -33,9 +36,13 @@ public class ButtonEditor extends AbstractCellEditor implements TableCellEditor 
                 
                 // Obtem o horário da linha atual
                 String horarioStr = (String) table.getValueAt(row, 0);
+                EntityManager em =null;
                 try {
+                    em = new ConnectionFactory().getConnection();
+                    DaoFactory factory = new DaoFactory(em);
+                    ConsultaDao consultaDao = factory.getConsultaDao();
                     // Adapta o horário para Date
-                    Consulta c = ConsultaDao.BuscarPorHorario(horarioStr);
+                    Consulta c = consultaDao.buscarPorHorario(AdaptarHorario(horarioStr));
 
                     if (label.equals("Registrar")) {
                         if (c == null) {
@@ -47,7 +54,7 @@ public class ButtonEditor extends AbstractCellEditor implements TableCellEditor 
                         }
                     } else if (label.equals("Excluir")) {
                         if (c != null) {
-                            ConsultaDao.Deletar(c);
+                            consultaDao.deletar(c);
                             System.out.println("Consulta excluída no horário: " + horarioStr);
                         } else {
                             System.out.println("Nenhuma consulta para excluir nesse horário.");
@@ -57,11 +64,14 @@ public class ButtonEditor extends AbstractCellEditor implements TableCellEditor 
                     // Após ação, atualiza tabela
                     parentFrame.preencherTabelaHorario();
 
-                } catch (ParseException ex) {
+                } catch (Exception ex) {
                     System.out.println("Erro ao converter horário: " + ex);
                 }
             }
         });
+    }
+    private LocalTime AdaptarHorario(String horas){
+        return LocalTime.parse(horas);
     }
 
     @Override

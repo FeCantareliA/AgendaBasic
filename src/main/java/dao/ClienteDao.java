@@ -1,142 +1,90 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package dao;
 
-import connection.ConnectionFactory;
+import factory.JpaUtil;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
 import java.util.List;
 import model.Cliente;
+import model.Pessoa;
+import util.*;
+import exception.*;
 
-/**
- *
- * @author Fecan
- */
 public class ClienteDao {
 
-    private static EntityManager em;
+    private EntityManager em;
 
-    public static void Salvar(Cliente cliente) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            em.getTransaction().begin();
-            if (cliente.getId() == null && cliente.getIdPessoa() != null) {
+    public ClienteDao(EntityManager em) {
+        this.em = em;
+    }
+
+    public void salvarOuAtualizar(Cliente cliente) {
+        try{
+        JpaUtil.executarSemRetorno(em, em -> {
+            if (cliente.getIdPessoa() == null || cliente.getIdPessoa().getId() == null) {
+                throw new DadosInvalidosException("É necessário referenciar uma pessoa cadastrada");
+            }
+
+            // Reatacha a Pessoa ao contexto do EM
+            Pessoa pessoaGerenciada = em.find(Pessoa.class, cliente.getIdPessoa().getId());
+            cliente.setIdPessoa(pessoaGerenciada);
+
+            if (cliente.getId() == null) {
                 em.persist(cliente);
                 System.out.println("Cliente cadastrado com sucesso.");
-            } else if (cliente.getId() == null && cliente.getIdPessoa() == null) {
-                System.out.println("Cliente deve referenciar uma pessoa.");
             } else {
-                System.out.println("Pessoa já cadastrada.");
+                em.merge(cliente);
+                System.out.println("Cliente atualizado com sucesso.");
             }
-            em.getTransaction().commit();
+        });
+}catch(AgendaException ex){
+MensagemUtil.tratar(ex);
+    }catch(Exception ex){
+MensagemUtil.tratar(ex);
+}
+}
 
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-        } finally {
-            em.close();
-        }
-    }
-
-    public static void Deletar(Cliente cliente) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            em.getTransaction().begin();
-            if (cliente.getId() == null) {
-                System.out.println("Cliente não cadastrado.");
-            } else {
-                Cliente c = em.find(Cliente.class, cliente.getId());
-                if (c.getId() != null) {
-                    em.remove(c);
-                    System.out.println("Cliente removido com sucesso.");
-                } else {
-                    System.out.println("Cliente não encontrado para remoção.");
-                }
-            }
-            em.getTransaction().commit();
-
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-        } finally {
-            em.close();
-        }
-
-    }
-
-    public static void Atualizar(Cliente cliente) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            em.getTransaction().begin();
-            if (cliente.getId() == null || cliente.getIdPessoa() == null
-                    || cliente.getIdPessoa().getId() == null) {
-                System.out.println("Cliente ou Pessoa não cadastrado. Atualização inválida.");
-                return;
-            }
-            em.merge(cliente);
-            System.out.println("Cliente Atualizado.");
-
-            em.getTransaction().commit();
-
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-        } finally {
-            em.close();
-        }
-    }
-
-    //buscas
-    public static Cliente BuscarPorId(int id) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            Cliente c = em.find(Cliente.class, id);
-            return c;
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
-
-    }
-
-    public static Cliente BuscarPorNome(String nome) {
-        em = new ConnectionFactory().getConnection();
-        try {
-            String jpql = "SELECT c FROM Cliente c WHERE c.idPessoa.nome = :nome";
-            return em.createQuery(jpql, Cliente.class).setParameter("nome", nome).getSingleResult();
-
-        } catch (jakarta.persistence.NoResultException ex) {
-            System.out.println("Nenhum cliente encontrado com esse nome.");
-            return null;
-        } catch (Exception ex) {
-            System.out.println("Erro: " + ex);
-            return null;
-        } finally {
-            em.close();
-        }
-    }
-    
-    //Listar
-    public static List<Cliente> Listar(){
-        em = new ConnectionFactory().getConnection();
+    public void deletar(Cliente cliente) {
         try{
-            String jpql ="SELECT c FROM Cliente c";
-            return em.createQuery(jpql, Cliente.class).getResultList();
+        JpaUtil.executarSemRetorno(em, em -> {
+            if (cliente == null || cliente.getId() == null) {
+                throw new EntidadeNaoEncontradaException("Cliente não está cadastrado.");
+            }
+
+            Cliente c = em.find(Cliente.class, cliente.getId());
+            if (c != null) {
+                em.remove(c);
+                System.out.println("Cliente removido com sucesso");
+            } else {
+                throw new EntidadeNaoEncontradaException("Cliente não encontrado para exclusão.");
+            }
+        });
+        }catch(AgendaException ex){
+            MensagemUtil.tratar(ex);
         }catch(Exception ex){
-            System.out.println("Erro: "+ex);
-            return null;
-        }finally{
-            em.close();
+            MensagemUtil.tratar(ex);
         }
+}
+    
+
+    public Cliente buscarPorId(int id) {
+        return JpaUtil.executar(em, em -> em.find(Cliente.class, id));
     }
 
+    public Cliente buscarPorNome(String nome) {
+        return JpaUtil.executar(em, em -> {
+            try {
+                String jpql = "SELECT c FROM Cliente c WHERE LOWER(TRIM(c.idPessoa.nome)) = LOWER(TRIM(:nome))";
+                return em.createQuery(jpql, Cliente.class)
+                         .setParameter("nome", nome)
+                         .getSingleResult();
+            } catch (NoResultException ex) {
+                System.out.println(ex.getMessage());
+                return null;
+            }
+        });
+    }
+
+    public List<Cliente> listar() {
+        return JpaUtil.executar(em, em -> em.createQuery("SELECT c FROM Cliente c", Cliente.class).getResultList());
+    }
 }

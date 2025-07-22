@@ -8,13 +8,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import model.*;
-import views.Cadastrar;
-import views.Consultas;
+import views.Acesso;
+
 
 public class Agenda {
 
     public static void main(String[] args) throws ParseException {
-     Consultas  view = new Consultas();
+     Acesso view = new Acesso();
+//        Cadastrar view = new Cadastrar();
      view.setVisible(true);
       
      //Formatar  hora para date

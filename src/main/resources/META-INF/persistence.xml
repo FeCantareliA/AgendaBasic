@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <persistence version="3.2" xmlns="https://jakarta.ee/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd">
-  <persistence-unit name="agendaBasic" transaction-type="RESOURCE_LOCAL">
+  <persistence-unit name="PostgreSQLUnit" transaction-type="RESOURCE_LOCAL">
+
+<!-- PostgreSQL -->
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+    <!-- Adição de todas as entidades -->
     <class>model.Consulta</class>
     <class>model.Cliente</class>
     <class>model.Pessoa</class>
+    
     <properties>
       <property name="jakarta.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/AgendaBasic"/>
       <property name="jakarta.persistence.jdbc.user" value="postgres"/>
@@ -12,11 +16,30 @@
       <property name="jakarta.persistence.jdbc.password" value="root"/>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
       <!-- Auto criação de tabelas -->
-      <property name="jakarta.persistence.schema-generation.database.action" value="none"/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="update"/>
       <!-- Dialeto do banco -->
       <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>
       <!-- Mostrar SQL no console -->
-      <property name="hibernate.show_sql" value="true"/>
+      <property name="hibernate.show_sql" value="false"/>
     </properties>
   </persistence-unit>
+  
+  <!-- Oracle -->
+  <persistence-unit name="OracleUnit" transaction-type="RESOURCE_LOCAL">
+        <!-- Adição de todas as entidades -->
+        <class>model.Consulta</class>
+        <class>model.Cliente</class>
+        <class>model.Pessoa</class>
+
+        <properties>
+            <property name="jakarta.persistence.jdbc.driver" value="oracle.jdbc.OracleDriver"/>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:oracle:thin:@localhost:1521:xe"/>
+            <property name="jakarta.persistence.jdbc.user" value="usuario_oracle"/>
+            <property name="jakarta.persistence.jdbc.password" value="senha_oracle"/>
+
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
+            <property name="hibernate.show_sql" value="false"/>
+            <property name="hibernate.format_sql" value="true"/>
+        </properties>
+    </persistence-unit>
 </persistence>
